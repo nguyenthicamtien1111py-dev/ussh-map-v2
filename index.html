@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>USSH Smart Explorer - Lộ Trình Tối Ưu Toàn Diện</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
+    body { display: flex; height: 100vh; width: 100vw; overflow: hidden; background: #fff5f5; }
+
+    #sidebar {
+      width: 410px;
+      height: 100%;
+      background: #ffffff;
+      box-shadow: 4px 0 25px rgba(255, 182, 193, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
+      z-index: 1000;
+      overflow-y: auto;
+      border-right: 2px dashed #fed7aa;
+    }
+
+    #map { flex: 1; height: 100%; z-index: 1; }
+
+    .leaflet-tile-pane {
+      filter: contrast(1.05) saturate(1.15) brightness(1.02);
+    }
+
+    .brand-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #ffedd5;
+    }
+    .squirrel-avatar-box {
+      width: 48px;
+      height: 48px;
+      background: #ffedd5;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fb923c;
+      box-shadow: 0 4px 10px rgba(251, 146, 60, 0.25);
+    }
+    .brand h2 { color: #9a3412; font-size: 16px; font-weight: 800; }
+    .brand p { color: #ea580c; font-size: 11px; font-weight: 600; margin-top: 1px; }
+
+    .origin-box {
+      background: #fff7ed;
+      border: 1.5px solid #ffedd5;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .section-title { font-size: 11px; font-weight: 800; color: #c2410c; text-transform: uppercase; letter-spacing: 0.5px; }
+    .origin-mode-toggle { display: flex; gap: 6px; }
+    .btn-toggle {
+      flex: 1;
+      padding: 7px;
+      border: 1.5px solid #fed7aa;
+      background: #fff;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #9a3412;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-toggle.active {
+      background: #f97316;
+      color: #fff;
+      border-color: #f97316;
+      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+    }
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1.5px solid #fed7aa;
+      border-radius: 8px;
+      font-size: 11.5px;
+      background: #fff;
+      outline: none;
+      color: #7c2d12;
+      font-weight: 600;
+    }
+    select:focus { border-color: #f97316; }
+
+    .filter-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+    .filter-btn {
+      padding: 8px 2px;
+      border: 1.5px solid #ffedd5;
+      background: #fffaf5;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #9a3412;
+      transition: all 0.2s;
+    }
+    .filter-btn.active {
+      border-color: #ea580c;
+      background: #ffedd5;
+      color: #c2410c;
+      transform: translateY(-2px);
+      box-shadow: 0 3px 8px rgba(234, 88, 12, 0.2);
+    }
+    .filter-btn span.icon { font-size: 16px; }
+
+    #categoryDestinationBox {
+      background: #eff6ff;
+      border: 1.5px solid #bfdbfe;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    #categoryDestinationBox label { font-size: 11px; font-weight: 800; color: #1e40af; }
+
+    #routeResultCard {
+      background: #f0fdf4;
+      border: 1.5px solid #bbf7d0;
+      border-left: 5px solid #16a34a;
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: none;
+    }
+    #routeResultCard h4 { font-size: 12px; color: #15803d; font-weight: 800; margin-bottom: 4px; }
+    .stat-row { display: flex; justify-content: space-between; font-size: 11px; color: #374151; margin-top: 2px; }
+    .stat-row strong { color: #111827; }
+
+    #infoCard {
+      background: #fffaf0;
+      border: 1.5px solid #feebc8;
+      border-radius: 12px;
+      padding: 12px;
+      display: none;
+    }
+    #infoCard h3 { font-size: 12.5px; color: #9a3412; margin-bottom: 3px; font-weight: 800; }
+    #infoCard p { font-size: 11px; color: #4b5563; line-height: 1.35; }
+    .btn-nav-to {
+      margin-top: 8px;
+      width: 100%;
+      background: #ea580c;
+      color: #fff;
+      border: none;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-nav-to:hover { background: #c2410c; }
+
+    .buffer-box {
+      background: #faf5ff;
+      border: 1.5px solid #e9d5ff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .buffer-box h4 { font-size: 11px; color: #6b21a8; font-weight: 800; }
+    .buffer-toggle-row { display: flex; gap: 6px; }
+    .buffer-btn {
+      flex: 1;
+      padding: 6px;
+      font-size: 10.5px;
+      font-weight: 700;
+      border-radius: 8px;
+      border: 1.5px solid #d8b4fe;
+      background: #fff;
+      color: #7e22ce;
+      cursor: pointer;
+    }
+    .buffer-btn.active { background: #9333ea; color: #fff; border-color: #9333ea; }
+
+    .squirrel-marker-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+    }
+    .squirrel-badge {
+      background: #9a3412;
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 10px;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+      margin-top: -4px;
+      border: 1.5px solid #ffffff;
+    }
+
+    @media (max-width: 768px) {
+      body { flex-direction: column-reverse; }
+      #sidebar { width: 100%; max-height: 52vh; border-radius: 20px 20px 0 0; padding: 14px; border-right: none; border-top: 2px dashed #fed7aa; }
+      #map { height: 48vh; }
+    }
+
+    .lbl-tag {
+      background: #ffffff;
+      border: 1.5px solid #f97316;
+      color: #9a3412;
+      font-weight: 700;
+      font-size: 9.5px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="sidebar">
+    <div class="brand-card">
+      <div class="squirrel-avatar-box">
+        <svg viewBox="0 0 100 100" width="36" height="36">
+          <ellipse cx="75" cy="50" rx="18" ry="24" fill="#ea580c"/>
+          <ellipse cx="73" cy="50" rx="12" ry="16" fill="#fed7aa"/>
+          <ellipse cx="45" cy="62" rx="20" ry="24" fill="#c2410c"/>
+          <ellipse cx="42" cy="64" rx="13" ry="16" fill="#ffedd5"/>
+          <circle cx="45" cy="38" r="18" fill="#ea580c"/>
+          <circle cx="34" cy="24" r="6" fill="#ea580c"/>
+          <circle cx="34" cy="24" r="3" fill="#ffedd5"/>
+          <circle cx="56" cy="24" r="6" fill="#ea580c"/>
+          <circle cx="56" cy="24" r="3" fill="#ffedd5"/>
+          <circle cx="39" cy="36" r="3" fill="#1e293b"/>
+          <circle cx="51" cy="36" r="3" fill="#1e293b"/>
+          <circle cx="38" cy="35" r="1" fill="#ffffff"/>
+          <circle cx="50" cy="35" r="1" fill="#ffffff"/>
+          <polygon points="45,40 42,43 48,43" fill="#7c2d12"/>
+          <ellipse cx="35" cy="42" rx="3.5" ry="2" fill="#f472b6" opacity="0.8"/>
+          <ellipse cx="55" cy="42" rx="3.5" ry="2" fill="#f472b6" opacity="0.8"/>
+        </svg>
+      </div>
+      <div class="brand">
+        <h2>USSH SMART EXPLORER</h2>
+        <p>Lộ trình tối ưu cùng Sóc Nhân Văn 🐿️</p>
+      </div>
+    </div>
+
+    <div class="origin-box">
+      <div class="section-title">📍 Vị trí chú sóc (Điểm xuất phát):</div>
+      <div class="origin-mode-toggle">
+        <button class="btn-toggle" id="btnModeGPS">📍 Theo bước chân (GPS)</button>
+        <button class="btn-toggle active" id="btnModeManual">🎯 Tự đặt chỗ đứng</button>
+      </div>
+      <div id="manualSelectContainer" style="margin-top: 4px;">
+        <select id="selectOriginPoint"></select>
+      </div>
+      <div id="gpsStatusText" style="display: none; font-size: 10.5px; color: #ea580c; font-weight: 700;">
+        Sóc đang sẵn sàng cùng bạn dạo quanh khuôn viên!
+      </div>
+    </div>
+
+    <div class="section-title">Khám phá theo nhu cầu:</div>
+    <div class="filter-grid">
+      <button class="filter-btn active" data-cat="all"><span class="icon">🏛️</span>Tất cả</button>
+      <button class="filter-btn" data-cat="study"><span class="icon">🎓</span>Học tập</button>
+      <button class="filter-btn" data-cat="water"><span class="icon">💧</span>Nước uống</button>
+      <button class="filter-btn" data-cat="rest"><span class="icon">🛏️</span>Nghỉ/Tắm</button>
+      <button class="filter-btn" data-cat="service"><span class="icon">🥪</span>Dịch vụ</button>
+    </div>
+
+    <div id="categoryDestinationBox">
+      <label id="catBoxLabel" for="selectCategoryDest">🎯 Sóc dẫn bạn đến:</label>
+      <select id="selectCategoryDest"></select>
+    </div>
+
+    <div id="routeResultCard">
+      <h4 id="routeResultTitle">Đường dẫn cho Sóc</h4>
+      <div class="stat-row"><span>Khoảng cách đi bộ:</span><strong id="resDistance">0 m</strong></div>
+      <div class="stat-row"><span>Thời gian tung tăng:</span><strong id="resTime">0 phút</strong></div>
+      <p style="margin-top: 5px; font-size: 10.5px; color: #475569;">Điểm dừng ở lối đi gần địa điểm.</p>
+      <button id="btnClearRoute" style="margin-top: 6px; width: 100%; background: #e2e8f0; color: #475569; border: none; padding: 5px; border-radius: 6px; font-size: 10.5px; font-weight: 700; cursor: pointer;">Xóa lộ trình</button>
+    </div>
+
+    <div id="infoCard">
+      <h3 id="cardTitle">Tên địa điểm</h3>
+      <p id="cardDesc">Mô tả chi tiết</p>
+      <button class="btn-nav-to" id="btnNavFromCard">🚀 Sóc ơi, dẫn đường đến đây!</button>
+    </div>
+
+    <div class="buffer-box">
+      <h4>🔍 Vùng phủ sóng tiện ích (Buffer)</h4>
+      <div class="buffer-toggle-row">
+        <button class="buffer-btn" id="btnBuf30">Vòng 30m (~30s)</button>
+        <button class="buffer-btn" id="btnBuf50">Vòng 50m (~1p)</button>
+        <button class="buffer-btn" id="btnBufClear">Tắt</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <script src="js/routing.js"></script>
+  <script>
+    const campusCenter = [10.87050, 106.80000];
+    const map = L.map('map', { zoomControl: false }).setView(campusCenter, 18);
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    const satLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      attribution: 'Google Satellite'
+    }).addTo(map);
+
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+      maxZoom: 20,
+      attribution: '© OpenStreetMap France'
+    });
+
+    const mapLayersControl = L.control.layers({ "Ảnh vệ tinh chi tiết": satLayer, "Bản đồ đường nét OSM": osmLayer }, null, { position: 'topright' }).addTo(map);
+
+    const squirrelSVGIcon = L.divIcon({
+      className: 'custom-squirrel-icon',
+      html: `
+        <div class="squirrel-marker-container">
+          <svg viewBox="0 0 100 100" width="48" height="48" style="filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));">
+            <path d="M 50,75 C 90,85 100,35 75,20 C 65,10 50,15 55,30 C 58,40 70,35 70,45 C 70,60 55,65 50,75 Z" fill="#ea580c"/>
+            <path d="M 52,72 C 85,80 92,38 72,25 C 65,18 55,20 60,32 C 62,38 68,36 68,44 C 68,56 55,62 52,72 Z" fill="#fed7aa"/>
+            <ellipse cx="44" cy="64" rx="19" ry="22" fill="#c2410c"/>
+            <ellipse cx="40" cy="66" rx="12" ry="15" fill="#ffedd5"/>
+            <ellipse cx="33" cy="84" rx="7" ry="4" fill="#9a3412"/>
+            <ellipse cx="52" cy="84" rx="7" ry="4" fill="#9a3412"/>
+            <circle cx="43" cy="40" r="17" fill="#ea580c"/>
+            <circle cx="32" cy="27" r="6" fill="#ea580c"/>
+            <circle cx="32" cy="27" r="3" fill="#ffedd5"/>
+            <circle cx="54" cy="27" r="6" fill="#ea580c"/>
+            <circle cx="54" cy="27" r="3" fill="#ffedd5"/>
+            <circle cx="38" cy="38" r="3" fill="#0f172a"/>
+            <circle cx="50" cy="38" r="3" fill="#0f172a"/>
+            <circle cx="37" cy="37" r="1.2" fill="#ffffff"/>
+            <circle cx="49" cy="37" r="1.2" fill="#ffffff"/>
+            <polygon points="44,42 41,45 47,45" fill="#7c2d12"/>
+            <ellipse cx="33" cy="44" rx="3.5" ry="2" fill="#f43f5e" opacity="0.8"/>
+            <ellipse cx="53" cy="44" rx="3.5" ry="2" fill="#f43f5e" opacity="0.8"/>
+            <ellipse cx="44" cy="58" rx="5" ry="6" fill="#b45309"/>
+            <circle cx="44" cy="53" r="4" fill="#78350f"/>
+          </svg>
+          <div class="squirrel-badge">Bạn & Sóc ở đây</div>
+        </div>
+      `,
+      iconSize: [48, 64],
+      iconAnchor: [24, 42]
+    });
+
+    let poiData = {
+      "Nhà NV.A (Tòa nhà Trung tâm - Sảnh A)": { category: "study", coords: [10.87026, 106.79956], desc: "Tòa nhà trung tâm: Sảnh chính, phòng hội thảo và hành chính khoa.", tag: "Tòa Trung tâm" },
+      "Nhà NV.A1 (Trung tâm hành chính quản lý)": { category: "study", coords: [10.87187, 106.80183], desc: "Khu hiệu bộ: BGH, P. Đào tạo, P. CTSV.", tag: "Hành chính" },
+      "Nhà NV.B1 (Giảng đường B1)": { category: "study", coords: [10.87201, 106.80235], desc: "Khối giảng đường học lý thuyết B1.", tag: "Giảng đường" },
+      "Nhà NV.B3 (Tòa C1-C2 cũ - Hội trường)": { category: "study", coords: [10.86937, 106.79969], desc: "Hội trường lớn và phòng học sinh viên.", tag: "Hội trường" },
+      "Nhà NV.B4 (Tòa B4)": { category: "study", coords: [10.86985, 106.79911], desc: "Khối giảng đường thực hành chuyên môn.", tag: "Giảng đường" },
+      "Nhà NV.B5 (Tòa A1 cũ)": { category: "study", coords: [10.87057, 106.79942], desc: "Khối giảng đường bộ môn.", tag: "Giảng đường" },
+      "Thư viện (Cơ sở Linh Trung)": { category: "study", coords: [10.87022, 106.80037], desc: "Không gian đọc sách máy lạnh, học liệu số.", tag: "Thư viện" },
+      "Phòng tự học (Khu phức hợp)": { category: "study", coords: [10.8707, 106.80033], desc: "Không gian tự học yên tĩnh cho sinh viên.", tag: "Tự học" },
+      "Tiệm Photo Nhân văn (Khu phức hợp)": { category: "study", coords: [10.8707, 106.80052], desc: "In ấn tài liệu học tập, đóng bìa luận văn.", tag: "Dịch vụ In ấn" },
+      "Căn tin Khu phức hợp": { category: "service", coords: [10.8707, 106.80072], desc: "Phục vụ thức ăn sáng, cơm trưa sinh viên.", tag: "Ẩm thực" },
+      "Máy lấy nước nóng lạnh Tầng 1 (Tòa A)": { category: "water", coords: [10.87041, 106.79969], desc: "Trạm cấp nước nóng - lạnh Tầng 1 sảnh Tòa A.", tag: "Nước nóng lạnh" },
+      "Máy lấy nước nóng lạnh Tầng 1 (Tòa B3)": { category: "water", coords: [10.86957, 106.79918], desc: "Máy nước nóng lạnh Tầng 1 Giảng đường B3.", tag: "Nước nóng lạnh" },
+      "Máy lấy nước nóng lạnh Tầng 3 (Tòa B3)": { category: "water", coords: [10.86951, 106.79919], desc: "Máy nước nóng lạnh Tầng 3 Giảng đường B3.", tag: "Nước nóng lạnh" },
+      "Máy lấy nước nóng lạnh Tầng 2 (Tòa B5)": { category: "water", coords: [10.87061, 106.79943], desc: "Trạm nước nóng lạnh Tầng 2 Tòa B5.", tag: "Nước nóng lạnh" },
+      "Máy lấy nước nóng lạnh Tầng 4 (Tòa B5)": { category: "water", coords: [10.87059, 106.79945], desc: "Trạm nước nóng lạnh Tầng 4 Tòa B5.", tag: "Nước nóng lạnh" },
+      "Máy lấy nước uống sạch (Hành lang B1)": { category: "water", coords: [10.87216, 106.8023], desc: "Trạm nước lọc hành lang Giảng đường B1.", tag: "Nước uống sạch" },
+      "Máy bán nước tự động (Sảnh Tòa NV.A1)": { category: "water", coords: [10.87236, 106.80169], desc: "Máy bán nước tự động sảnh A1.", tag: "Máy bán nước" },
+      "Máy bán nước tự động (Sảnh Giảng đường B1)": { category: "water", coords: [10.87208, 106.80231], desc: "Máy bán nước sảnh Giảng đường B1.", tag: "Máy bán nước" },
+      "Máy bán nước tự động (Sảnh B3)": { category: "water", coords: [10.86963, 106.79917], desc: "Máy bán nước cạnh khu học tập B3.", tag: "Máy bán nước" },
+      "Phòng nghỉ trưa Nữ (Tầng 7 Tòa A)": { category: "rest", coords: [10.87178, 106.80187], desc: "Phòng máy lạnh, đệm nằm buổi trưa cho Nữ tại Tầng 7 Tòa A.", tag: "Nghỉ trưa Nữ" },
+      "Phòng nghỉ trưa Nữ (Tòa B3 - C1.01 đến C1.04 cũ)": { category: "rest", coords: [10.86953, 106.79969], desc: "Cụm phòng nghỉ trưa máy lạnh Nữ tại Tòa B3.", tag: "Nghỉ trưa Nữ" },
+      "Phòng nghỉ trưa Nam (Tầng 7 Tòa A)": { category: "rest", coords: [10.87179, 106.80182], desc: "Không gian nghỉ trưa sinh viên Nam tại Tầng 7 Tòa A.", tag: "Nghỉ trưa Nam" },
+      "Phòng nghỉ trưa Nam (Tòa B3 - C2.01 cũ)": { category: "rest", coords: [10.8691, 106.79966], desc: "Phòng nghỉ trưa máy lạnh Nam tại Tòa B3.", tag: "Nghỉ trưa Nam" },
+      "Nhà tắm sinh viên (Khu WC Tòa B3 - C1 cũ)": { category: "rest", coords: [10.86951, 106.79922], desc: "Phòng tắm nước sạch sau giờ học thể chất, thể thao.", tag: "Nhà tắm" },
+      "Cổng A (Quảng Trường Sáng Tạo)": { category: "service", coords: [10.87347, 106.80189], desc: "Cổng chính tiếp giáp trục đường D1.", tag: "Cổng trường" },
+      "Cổng B (Đường Hàn Thuyên - KTX Khu B)": { category: "service", coords: [10.86987, 106.80093], desc: "Cổng sau hướng đi KTX Khu B.", tag: "Cổng trường" },
+      "Cổng C (Phía Hồ Ánh Dương / TDTT)": { category: "service", coords: [10.87034, 106.79771], desc: "Lối vào khu thể thao và Hồ Ánh Dương.", tag: "Cổng trường" },
+      "Bãi để xe máy sinh viên (Cổng A)": { category: "service", coords: [10.87337, 106.8016], desc: "Bãi giữ xe cổng chính.", tag: "Bãi xe" },
+      "Bãi để xe máy sinh viên (Cổng B - Hàn Thuyên)": { category: "service", coords: [10.8698, 106.80072], desc: "Bãi giữ xe máy sinh viên cổng đường Hàn Thuyên.", tag: "Bãi xe Cổng B" },
+      "Bãi để xe máy sinh viên (Cổng C)": { category: "service", coords: [10.87062, 106.79877], desc: "Bãi giữ xe cạnh Nhà TDTT.", tag: "Bãi xe Cổng C" },
+      "Nhà Căn tin sinh viên & Dịch vụ(1)": { category: "service", coords: [10.86995, 106.8], desc: "Căn tin trung tâm trường.", tag: "Căn tin" },
+      "Nhà Căn tin sinh viên (Tòa B3)": { category: "service", coords: [10.86994, 106.79912], desc: "Quầy thức ăn nhanh mang đi khu B3.", tag: "Căn tin B3" },
+      "Youth Station (Không gian Thanh niên)": { category: "service", coords: [10.87036, 106.80075], desc: "Không gian giao lưu Đoàn - Hội sinh viên.", tag: "Đoàn - Hội" },
+      "Nhà NV.C1 (Nhà TDTT Đa năng)": { category: "service", coords: [10.87056, 106.80123], desc: "Sân bóng chuyền, cầu lông, thể chất.", tag: "Thể thao" },
+      "Hồ Ánh Dương (Cảnh quan sinh thái)": { category: "service", coords: [10.86997, 106.79858], desc: "Hồ điều hòa sinh thái thoáng mát.", tag: "Cảnh quan" }
+    };
+
+    let routingNetwork = null;
+    const routingReady = Promise.all([
+      fetch('DATA/walkways.geojson').then(readGeoJSON),
+      fetch('DATA/buildings.geojson').then(readGeoJSON)
+    ]).then(([walkways, buildings]) => {
+      routingNetwork = CampusRouting.createNetwork(walkways, buildings, { mainComponentOnly: true });
+      const walkwayLayer = L.geoJSON(routingNetwork.toGeoJSON(), {
+        style: { color: '#2563eb', weight: 3, opacity: 0.65 },
+        interactive: false
+      });
+      mapLayersControl.addOverlay(walkwayLayer, 'Lối đi trong trường');
+      if (currentOriginRawCoords) moveSquirrelTo(currentOriginRawCoords);
+      return routingNetwork;
+    }).catch(error => {
+      document.getElementById('gpsStatusText').innerText = 'Chưa tải được lối đi. Hãy tải lại trang để thử lại.';
+      console.error('Không thể tải mạng lối đi:', error);
+      return null;
+    });
+
+    function readGeoJSON(response) {
+      if (!response.ok) throw new Error('Không tải được ' + response.url);
+      return response.json();
+    }
+
+    const markersGroup = L.layerGroup().addTo(map);
+    const bufferGroup = L.layerGroup().addTo(map);
+    let activeRouteLayer = null;
+    let routeRequestId = 0;
+
+    let activeCategory = "all";
+    let activeBufferRadius = 0;
+    let currentOriginCoords = null;
+    let currentOriginRawCoords = null;
+    let activeRouteDestination = null;
+    let currentTargetName = null;
+    let squirrelMarker = null;
+
+    function getColorByCategory(cat) {
+      if (cat === "study") return "#ea580c";
+      if (cat === "water") return "#0284c7";
+      if (cat === "rest") return "#a855f7";
+      if (cat === "service") return "#16a34a";
+      return "#f97316";
+    }
+
+    function updateCategoryDropdown() {
+      const selectDest = document.getElementById('selectCategoryDest');
+      selectDest.innerHTML = '<option value="">-- Chọn nơi bạn muốn Sóc dẫn đến --</option>';
+
+      Object.entries(poiData).forEach(([name, data]) => {
+        if (activeCategory === "all" || data.category === activeCategory) {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          selectDest.appendChild(opt);
+        }
+      });
+    }
+
+    function renderMapContent() {
+      markersGroup.clearLayers();
+      bufferGroup.clearLayers();
+      updateCategoryDropdown();
+
+      Object.entries(poiData).forEach(([name, data]) => {
+        if (activeCategory !== "all" && data.category !== activeCategory) return;
+
+        const color = getColorByCategory(data.category);
+
+        const marker = L.circleMarker(data.coords, {
+          radius: (data.category === "rest" || data.category === "water") ? 7.5 : 6.5,
+          fillColor: color,
+          color: '#ffffff',
+          weight: 2,
+          fillOpacity: 0.95
+        });
+
+        marker.bindTooltip(name, {
+          permanent: false,
+          direction: 'top',
+          className: 'lbl-tag',
+          offset: [0, -6]
+        });
+
+        marker.on('click', () => {
+          currentTargetName = name;
+          document.getElementById('cardTitle').innerText = name;
+          document.getElementById('cardDesc').innerText = data.desc;
+          document.getElementById('infoCard').style.display = 'block';
+          map.panTo(data.coords);
+        });
+
+        markersGroup.addLayer(marker);
+
+        if (activeBufferRadius > 0 && (data.category === "water" || data.category === "rest")) {
+          const bufferCircle = L.circle(data.coords, {
+            radius: activeBufferRadius,
+            color: color,
+            weight: 1.5,
+            dashArray: '4, 4',
+            fillColor: color,
+            fillOpacity: 0.2
+          });
+          bufferGroup.addLayer(bufferCircle);
+        }
+      });
+    }
+
+    renderMapContent();
+
+    async function navigateToDestination(destName) {
+      if (!destName || !poiData[destName]) return;
+      const requestId = ++routeRequestId;
+      const network = await routingReady;
+      if (requestId !== routeRequestId) return;
+      if (!network) {
+        alert('Chưa tải được dữ liệu lối đi. Hãy tải lại trang để thử lại.');
+        return;
+      }
+      if (!currentOriginCoords) {
+        alert("Chưa có vị trí của bạn và Sóc! Hãy chọn một điểm xuất phát trước.");
+        return;
+      }
+
+      const startPt = currentOriginCoords;
+      const endPt = poiData[destName].coords;
+
+      const result = network.route(startPt, endPt);
+      if (!result) {
+        clearRoute();
+        alert('Chưa có lối đi nối tới địa điểm này trong dữ liệu bản đồ.');
+        return;
+      }
+      const route = network.smoothRoute(result.points);
+      activeRouteDestination = destName;
+
+      if (activeRouteLayer) map.removeLayer(activeRouteLayer);
+
+      const routeOutline = L.polyline(route, {
+        color: '#ffffff', weight: 8, opacity: 0.95, interactive: false,
+        lineCap: 'round', lineJoin: 'round', dashArray: '0.1, 12'
+      });
+      const routeLine = L.polyline(route, {
+        color: '#f97316',
+        weight: 5,
+        opacity: 1,
+        lineCap: 'round',
+        lineJoin: 'round',
+        dashArray: '0.1, 12'
+      });
+      const destinationMarker = L.marker(result.end, {
+        icon: L.divIcon({
+          className: 'route-destination-marker',
+          html: '<span style="font-size: 26px; filter: drop-shadow(0 1px 2px white);">🏁</span>',
+          iconSize: [28, 32], iconAnchor: [4, 30]
+        })
+      }).bindTooltip('Điểm dừng trên lối đi gần ' + destName, { direction: 'top', className: 'lbl-tag' });
+      activeRouteLayer = L.featureGroup([routeOutline, routeLine, destinationMarker]).addTo(map);
+
+      map.fitBounds(activeRouteLayer.getBounds(), { padding: [40, 40] });
+
+      const meters = Math.round(result.distance);
+      const mins = Math.max(1, Math.ceil(meters / 75));
+
+      document.getElementById('routeResultTitle').innerText = "Đường đi tới: " + destName;
+      document.getElementById('resDistance').innerText = meters + " m";
+      document.getElementById('resTime').innerText = "~" + mins + " phút";
+      document.getElementById('routeResultCard').style.display = 'block';
+    }
+
+    document.getElementById('selectCategoryDest').addEventListener('change', function() {
+      if (this.value) navigateToDestination(this.value);
+    });
+
+    document.getElementById('btnNavFromCard').addEventListener('click', function() {
+      if (currentTargetName) navigateToDestination(currentTargetName);
+    });
+
+    function clearRoute() {
+      routeRequestId++;
+      if (activeRouteLayer) map.removeLayer(activeRouteLayer);
+      activeRouteLayer = null;
+      activeRouteDestination = null;
+      document.getElementById('routeResultCard').style.display = 'none';
+      document.getElementById('selectCategoryDest').selectedIndex = 0;
+    }
+    document.getElementById('btnClearRoute').addEventListener('click', clearRoute);
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        activeCategory = this.getAttribute('data-cat');
+
+        const catNames = { all: "tất cả", study: "học tập", water: "nước uống", rest: "nghỉ ngơi/tắm", service: "dịch vụ" };
+        document.getElementById('catBoxLabel').innerText = `🎯 Sóc dẫn bạn đến (${catNames[activeCategory]}):`;
+
+        renderMapContent();
+      });
+    });
+
+    function moveSquirrelTo(coords) {
+      currentOriginRawCoords = coords;
+      if (!routingNetwork) return false;
+      const snapped = routingNetwork.snap(coords);
+      if (!snapped) {
+        currentOriginCoords = null;
+        if (squirrelMarker) map.removeLayer(squirrelMarker);
+        squirrelMarker = null;
+        clearRoute();
+        document.getElementById('gpsStatusText').innerText = 'Vị trí đang xa lối đi trong trường. Bạn có thể chọn điểm xuất phát bằng tay.';
+        return false;
+      }
+      currentOriginCoords = snapped.coords;
+      if (!squirrelMarker) {
+        squirrelMarker = L.marker(snapped.coords, { icon: squirrelSVGIcon }).addTo(map);
+      } else {
+        squirrelMarker.setLatLng(snapped.coords);
+      }
+      if (activeRouteDestination) navigateToDestination(activeRouteDestination);
+      else map.panTo(snapped.coords);
+      return true;
+    }
+
+    let gpsWatchId = null;
+    let originMode = "manual";
+
+    document.getElementById('btnModeGPS').addEventListener('click', function() {
+      if (!navigator.geolocation) {
+        alert("Thiết bị không hỗ trợ GPS!");
+        return;
+      }
+      this.classList.add('active');
+      document.getElementById('btnModeManual').classList.remove('active');
+      document.getElementById('manualSelectContainer').style.display = 'none';
+      document.getElementById('gpsStatusText').style.display = 'block';
+
+      document.getElementById('gpsStatusText').innerText = "Đang kết nối GPS...";
+
+      originMode = "gps";
+      currentOriginCoords = null;
+      currentOriginRawCoords = null;
+      if (squirrelMarker) map.removeLayer(squirrelMarker);
+      squirrelMarker = null;
+      clearRoute();
+      if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
+      gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (originMode !== "gps") return;
+          const userCoords = [pos.coords.latitude, pos.coords.longitude];
+          if (moveSquirrelTo(userCoords)) {
+            document.getElementById('gpsStatusText').innerText = "🐾 Sóc đang theo bạn trên lối đi gần nhất (GPS)!";
+          }
+        },
+        () => { document.getElementById('gpsStatusText').innerText = "⚠️ Hãy cấp quyền GPS trên trình duyệt!"; },
+        { enableHighAccuracy: true, timeout: 6000 }
+      );
+    });
+
+    document.getElementById('btnModeManual').addEventListener('click', function() {
+      originMode = "manual";
+      if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
+      gpsWatchId = null;
+      this.classList.add('active');
+      document.getElementById('btnModeGPS').classList.remove('active');
+      document.getElementById('manualSelectContainer').style.display = 'block';
+      document.getElementById('gpsStatusText').style.display = 'none';
+
+      const chosen = selectOrigin.value;
+      if (poiData[chosen]) moveSquirrelTo(poiData[chosen].coords);
+    });
+
+    const selectOrigin = document.getElementById('selectOriginPoint');
+    Object.keys(poiData).forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      selectOrigin.appendChild(opt);
+    });
+
+    selectOrigin.addEventListener('change', function() {
+      if (poiData[this.value]) moveSquirrelTo(poiData[this.value].coords);
+    });
+
+    // Mặc định đặt chú sóc tại sảnh Nhà A
+    moveSquirrelTo(poiData["Nhà NV.A (Tòa nhà Trung tâm - Sảnh A)"].coords);
+
+    document.getElementById('btnBuf30').addEventListener('click', function() {
+      activeBufferRadius = 30;
+      updateBufBtns(this);
+      renderMapContent();
+    });
+    document.getElementById('btnBuf50').addEventListener('click', function() {
+      activeBufferRadius = 50;
+      updateBufBtns(this);
+      renderMapContent();
+    });
+    document.getElementById('btnBufClear').addEventListener('click', function() {
+      activeBufferRadius = 0;
+      updateBufBtns(null);
+      renderMapContent();
+    });
+    function updateBufBtns(activeBtn) {
+      document.querySelectorAll('.buffer-btn').forEach(b => b.classList.remove('active'));
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+  </script>
+</body>
+</html>
